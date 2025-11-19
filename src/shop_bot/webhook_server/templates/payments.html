@@ -1,0 +1,65 @@
+{% extends "base.html" %} {% block title %}Платежи{% endblock %} {% block
+content %}
+
+<h1>Платежи банковской картой РФ</h1>
+
+{% if documents %}
+<section>
+	<h2>Ожидающие проверки</h2>
+	<div style="overflow-x: auto">
+		<table class="transactions-table">
+			<thead>
+				<tr>
+					<th>Пользователь</th>
+					<th>Хост</th>
+					<th>Тариф</th>
+					<th>Сумма</th>
+					<th>Дата</th>
+					<th>Тип файла</th>
+					<th>Действия</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for doc in documents %}
+				<tr>
+					<td>
+						{{ doc.username or 'N/A' }}<br /><small>({{doc.user_id}})</small>
+					</td>
+					<td>{{ doc.host_name or 'N/A' }}</td>
+					<td>{{ doc.plan_name or 'N/A' }}</td>
+					<td>{{ doc.amount_rub | round(2) }} RUB</td>
+					<td>{{ doc.created_date.split(' ')[0] if doc.created_date else 'N/A' }}</td>
+					<td>{{ 'Фото' if doc.file_type == 'photo' else 'PDF' }}</td>
+					<td>
+						<form
+							action="{{ url_for('approve_payment_route', document_id=doc.document_id) }}"
+							method="post"
+							style="display: inline"
+							onsubmit="return confirm('Вы уверены, что хотите одобрить этот платеж?');"
+						>
+							<button type="submit" class="button button-primary button-small">
+								✅ Одобрить
+							</button>
+						</form>
+						<form
+							action="{{ url_for('reject_payment_route', document_id=doc.document_id) }}"
+							method="post"
+							style="display: inline"
+							onsubmit="return confirm('Вы уверены, что хотите отклонить этот платеж?');"
+						>
+							<button type="submit" class="button button-danger button-small">
+								❌ Отклонить
+							</button>
+						</form>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+</section>
+{% else %}
+<p>Нет платежей, ожидающих проверки.</p>
+<p><small>Примечание: Документы также отправляются администратору в Telegram-бот с кнопками для быстрого одобрения/отклонения.</small></p>
+{% endif %} {% endblock %}
+
