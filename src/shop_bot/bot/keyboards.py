@@ -20,18 +20,28 @@ def create_main_menu_keyboard(user_keys: list, trial_available: bool, is_admin: 
     if trial_available and get_setting("trial_enabled") == "true":
         builder.button(text="🎁 Попробовать бесплатно", callback_data="get_trial")
 
-    builder.button(text="👤 Мой профиль", callback_data="show_profile")
-    builder.button(text=f"🔑 Мои ключи ({len(user_keys)})", callback_data="manage_keys")
+    builder.button(text="👤 Мой кабинет", callback_data="show_profile")
+    builder.button(text=f"💳 Мои тарифы ({len(user_keys)})", callback_data="manage_keys")
+    builder.button(text="📞 Тех. поддержка", callback_data="show_help")
+    builder.button(text="📖 Инструкция", callback_data="howto_vless")
     builder.button(text="🤝 Реферальная программа", callback_data="show_referral_program")
-    builder.button(text="🆘 Поддержка", callback_data="show_help")
-    builder.button(text="ℹ️ О проекте", callback_data="show_about")
-    builder.button(text="❓ Как использовать", callback_data="howto_vless")
+    builder.button(text="📢 Наши новости", callback_data="show_about")
+    
     if is_admin:
         builder.button(text="📢 Рассылка", callback_data="start_broadcast")
 
-    layout = [1 if trial_available and get_setting("trial_enabled") == "true" else 0, 2, 1, 2, 1, 1 if is_admin else 0]
-    actual_layout = [size for size in layout if size > 0]
-    builder.adjust(*actual_layout)
+    # Раскладка: [trial], [кабинет, тарифы], [поддержка, инструкция], [реферальная], [новости], [рассылка если админ]
+    layout = []
+    if trial_available and get_setting("trial_enabled") == "true":
+        layout.append(1)  # Попробовать бесплатно - одна кнопка
+    layout.append(2)  # Мой кабинет и Мои тарифы - две кнопки в строке
+    layout.append(2)  # Тех. поддержка и Инструкция - две кнопки в строке
+    layout.append(1)  # Реферальная программа - одна кнопка
+    layout.append(1)  # Наши новости - одна кнопка
+    if is_admin:
+        layout.append(1)  # Рассылка - одна кнопка
+    
+    builder.adjust(*layout)
     
     return builder.as_markup()
 
@@ -70,6 +80,20 @@ def create_about_keyboard(channel_url: str | None, terms_url: str | None, privac
 def create_support_keyboard(support_user: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="🆘 Написать в поддержку", url=support_user)
+    builder.button(text="⬅️ Назад в меню", callback_data="back_to_main_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def create_support_telegram_keyboard(support_url: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📞 Написать в тех. поддержку", url=support_url)
+    builder.button(text="⬅️ Назад в меню", callback_data="back_to_main_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def create_news_channel_keyboard(channel_url: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📢 Перейти в канал новостей", url=channel_url)
     builder.button(text="⬅️ Назад в меню", callback_data="back_to_main_menu")
     builder.adjust(1)
     return builder.as_markup()

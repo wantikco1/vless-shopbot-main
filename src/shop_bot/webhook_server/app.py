@@ -35,7 +35,8 @@ ALL_SETTINGS_KEYS = [
     "yookassa_secret_key", "sbp_enabled", "receipt_email", "cryptobot_token",
     "heleket_merchant_id", "heleket_api_key", "domain", "referral_percentage",
     "referral_discount", "ton_wallet_address", "tonapi_key", "force_subscription", "trial_enabled", "trial_duration_days", "enable_referrals", "minimum_withdrawal",
-    "support_group_id", "support_bot_token", "bank_card_rf_details"
+    "support_group_id", "support_bot_token", "bank_card_rf_details", "welcome_message_text",
+    "welcome_message_photo_file_id", "support_telegram_url", "news_channel_url"
 ]
 
 def create_webhook_app(bot_controller_instance):
@@ -150,16 +151,24 @@ def create_webhook_app(bot_controller_instance):
     @flask_app.route('/payments')
     @login_required
     def payments_page():
-        documents = get_pending_bank_payment_documents()
-        for doc in documents:
-            if doc.get('metadata'):
-                try:
-                    metadata = json.loads(doc['metadata'])
-                    doc['plan_name'] = metadata.get('plan_name', 'N/A')
-                    doc['host_name'] = metadata.get('host_name', 'N/A')
-                except:
+        try:
+            documents = get_pending_bank_payment_documents()
+            for doc in documents:
+                if doc.get('metadata'):
+                    try:
+                        metadata = json.loads(doc['metadata'])
+                        doc['plan_name'] = metadata.get('plan_name', 'N/A')
+                        doc['host_name'] = metadata.get('host_name', 'N/A')
+                    except Exception as e:
+                        logger.error(f"Error parsing metadata for document {doc.get('document_id')}: {e}")
+                        doc['plan_name'] = 'N/A'
+                        doc['host_name'] = 'N/A'
+                else:
                     doc['plan_name'] = 'N/A'
                     doc['host_name'] = 'N/A'
+        except Exception as e:
+            logger.error(f"Error getting pending documents: {e}", exc_info=True)
+            documents = []
         
         common_data = get_common_template_data()
         return render_template('payments.html', documents=documents, **common_data)

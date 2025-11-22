@@ -142,10 +142,30 @@ def get_user_router() -> Router:
         user_data = get_user(user_id)
 
         if user_data and user_data.get('agreed_to_terms'):
-            await message.answer(
-                f"👋 Снова здравствуйте, {html.bold(message.from_user.full_name)}!",
-                reply_markup=keyboards.main_reply_keyboard
-            )
+            # Показываем приветственное сообщение с фото (если настроено)
+            welcome_text = get_setting("welcome_message_text")
+            welcome_photo_id = get_setting("welcome_message_photo_file_id")
+            
+            if welcome_photo_id and welcome_text:
+                # Отправляем фото с текстом
+                await message.answer_photo(
+                    photo=welcome_photo_id,
+                    caption=welcome_text,
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            elif welcome_text:
+                # Только текст без фото
+                await message.answer(
+                    welcome_text,
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            else:
+                # Стандартное приветствие, если настройки не заполнены
+                await message.answer(
+                    f"👋 Снова здравствуйте, {html.bold(message.from_user.full_name)}!",
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            
             await show_main_menu(message)
             return
 
@@ -522,42 +542,53 @@ def get_user_router() -> Router:
     async def about_handler(callback: types.CallbackQuery):
         await callback.answer()
         
-        about_text = get_setting("about_text")
-        terms_url = get_setting("terms_url")
-        privacy_url = get_setting("privacy_url")
-        channel_url = get_setting("channel_url")
-
-        final_text = about_text if about_text else "Информация о проекте не добавлена."
-
-        keyboard = keyboards.create_about_keyboard(channel_url, terms_url, privacy_url)
-
-        await callback.message.edit_text(
-            final_text,
-            reply_markup=keyboard,
-            disable_web_page_preview=True
-        )
-
-    @user_router.callback_query(F.data == "show_help")
-    @registration_required
-    async def about_handler(callback: types.CallbackQuery):
-        await callback.answer()
-
-        support_user = get_setting("support_user")
-        support_text = get_setting("support_text")
-
-        if support_user == None and support_text == None:
+        news_channel_url = get_setting("news_channel_url")
+        
+        if news_channel_url:
+            # Перекидываем на канал новостей
+            keyboard = keyboards.create_news_channel_keyboard(news_channel_url)
             await callback.message.edit_text(
-                "Информация о поддержке не установлена. Установите её в админ-панели.",
-                reply_markup=keyboards.create_back_to_menu_keyboard()
-            )
-        elif support_text == None:
-            await callback.message.edit_text(
-                "Для связи с поддержкой используйте кнопку ниже.",
-                reply_markup=keyboards.create_support_keyboard(support_user)
+                "📢 Наши новости\n\nПерейдите в наш канал, чтобы быть в курсе всех обновлений!",
+                reply_markup=keyboard
             )
         else:
             await callback.message.edit_text(
-                support_text + "\n\n",
+                "📢 Наши новости\n\nКанал новостей не настроен. Обратитесь к администратору.",
+                reply_markup=keyboards.create_back_to_menu_keyboard()
+            )
+
+    @user_router.callback_query(F.data == "show_help")
+    @registration_required
+    async def show_help_handler(callback: types.CallbackQuery):
+        await callback.answer()
+
+        support_telegram_url = get_setting("support_telegram_url")
+        
+        if support_telegram_url:
+            # Перекидываем на телеграм аккаунт поддержки
+            keyboard = keyboards.create_support_telegram_keyboard(support_telegram_url)
+            await callback.message.edit_text(
+                "📞 Тех. поддержка\n\nДля связи с технической поддержкой используйте кнопку ниже.",
+                reply_markup=keyboard
+            )
+        else:
+            # Fallback на старый способ, если новая настройка не заполнена
+            support_user = get_setting("support_user")
+            support_text = get_setting("support_text")
+
+            if support_user == None and support_text == None:
+                await callback.message.edit_text(
+                    "Информация о поддержке не установлена. Установите её в админ-панели.",
+                    reply_markup=keyboards.create_back_to_menu_keyboard()
+                )
+            elif support_text == None:
+                await callback.message.edit_text(
+                    "Для связи с поддержкой используйте кнопку ниже.",
+                    reply_markup=keyboards.create_support_keyboard(support_user)
+                )
+            else:
+                await callback.message.edit_text(
+                    support_text + "\n\n",
                 reply_markup=keyboards.create_support_keyboard(support_user)
             )
 
@@ -1399,6 +1430,19 @@ def get_user_router() -> Router:
     async def invalid_document_handler(message: types.Message):
         await message.answer("❌ Пожалуйста, отправьте скриншот (фото) или PDF-файл чека об оплате.")
 
+    @user_router.message(F.photo & ~StateFilter(PaymentProcess.waiting_for_payment_document))
+    @registration_required
+    async def photo_handler(message: types.Message):
+        # Если администратор отправил фото, показываем file_id для использования в настройках
+        if str(message.from_user.id) == ADMIN_ID:
+            photo_id = message.photo[-1].file_id
+            await message.answer(
+                f"📸 <b>File ID фото:</b>\n\n<code>{photo_id}</code>\n\n"
+                f"Скопируйте этот File ID и вставьте его в панели администратора в поле "
+                f"\"File ID фото для приветствия\".",
+                parse_mode="HTML"
+            )
+
     @user_router.callback_query(F.data.startswith("approve_document_"))
     async def approve_document_handler(callback: types.CallbackQuery):
         if str(callback.from_user.id) != ADMIN_ID:
@@ -1614,7 +1658,28 @@ async def process_successful_onboarding(callback: types.CallbackQuery, state: FS
     set_terms_agreed(callback.from_user.id)
     await state.clear()
     await callback.message.delete()
-    await callback.message.answer("Приятного использования!", reply_markup=keyboards.main_reply_keyboard)
+    
+    # Показываем приветственное сообщение с фото (если настроено)
+    welcome_text = get_setting("welcome_message_text")
+    welcome_photo_id = get_setting("welcome_message_photo_file_id")
+    
+    if welcome_photo_id and welcome_text:
+        # Отправляем фото с текстом
+        await callback.message.answer_photo(
+            photo=welcome_photo_id,
+            caption=welcome_text,
+            reply_markup=keyboards.main_reply_keyboard
+        )
+    elif welcome_text:
+        # Только текст без фото
+        await callback.message.answer(
+            welcome_text,
+            reply_markup=keyboards.main_reply_keyboard
+        )
+    else:
+        # Стандартное приветствие, если настройки не заполнены
+        await callback.message.answer("Приятного использования!", reply_markup=keyboards.main_reply_keyboard)
+    
     await show_main_menu(callback.message)
 
 async def is_url_reachable(url: str) -> bool:

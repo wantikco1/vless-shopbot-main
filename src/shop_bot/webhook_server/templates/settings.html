@@ -193,6 +193,16 @@
 			<section class="settings-section">
 				<h2>Настройки Поддержки и Бота-Саппорта</h2>
 				<div class="form-group">
+					<label for="support_telegram_url">📞 URL Тех. поддержки (Telegram аккаунт, например: https://t.me/username или t.me/username):</label>
+					<input
+						type="text"
+						id="support_telegram_url"
+						name="support_telegram_url"
+						placeholder="https://t.me/your_support"
+						value="{{ settings.support_telegram_url or '' }}"
+					/>
+				</div>
+				<div class="form-group">
 					<label for="support_user">URL поддержки или Бота-Саппорта:</label>
 					<input
 						type="text"
@@ -399,6 +409,28 @@
 			</section>
 
 			<section class="settings-section">
+				<h2>Приветственное сообщение</h2>
+				<div class="form-group">
+					<label for="welcome_message_text">Текст приветственного сообщения:</label>
+					<textarea id="welcome_message_text" name="welcome_message_text" rows="4" placeholder="Добро пожаловать в наш бот! Здесь вы можете...">{{
+							settings.welcome_message_text or ""
+						}}</textarea>
+				</div>
+				<div class="form-group">
+					<label for="welcome_message_photo_file_id">File ID фото для приветствия (получите через бота):</label>
+					<input
+						type="text"
+						id="welcome_message_photo_file_id"
+						name="welcome_message_photo_file_id"
+						placeholder="AgACAgIAAxkBAAIB..."
+						value="{{ settings.welcome_message_photo_file_id or '' }}"
+					/>
+					<small style="display: block; margin-top: 5px; color: #666;">
+						Для получения File ID отправьте фото в бота, затем скопируйте File ID из сообщения бота.
+					</small>
+				</div>
+			</section>
+			<section class="settings-section">
 				<h2>Настройки Контента</h2>
 				<div class="form-group">
 					<label for="about_text">Текст "О проекте":</label>
@@ -443,6 +475,16 @@
 						id="channel_url"
 						name="channel_url"
 						value="{{ settings.channel_url or '' }}"
+					/>
+				</div>
+				<div class="form-group">
+					<label for="news_channel_url">📢 URL Канала новостей (для кнопки "Наши новости", например: https://t.me/channelname или t.me/channelname):</label>
+					<input
+						type="text"
+						id="news_channel_url"
+						name="news_channel_url"
+						placeholder="https://t.me/your_news_channel"
+						value="{{ settings.news_channel_url or '' }}"
 					/>
 				</div>
 				<div class="form-group form-group-checkbox">
