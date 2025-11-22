@@ -84,6 +84,26 @@ def is_valid_email(email: str) -> bool:
     pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     return re.match(pattern, email) is not None
 
+def get_welcome_photo_path(photo_path_setting: str):
+    """Получает полный путь к фото приветственного сообщения"""
+    if not photo_path_setting:
+        return None
+    try:
+        from pathlib import Path
+        handlers_file = Path(__file__).resolve()
+        # handlers.py находится в src/shop_bot/bot/
+        # Нужно подняться на 1 уровень: bot -> shop_bot, затем в webhook_server/static
+        # handlers_file.parent = src/shop_bot/bot/
+        # handlers_file.parent.parent = src/shop_bot/
+        webhook_static_dir = handlers_file.parent.parent / "webhook_server" / "static"
+        full_path = webhook_static_dir / photo_path_setting
+        logger.info(f"Constructed welcome photo path: {full_path} (from setting: {photo_path_setting})")
+        logger.info(f"Handlers file: {handlers_file}, Static dir: {webhook_static_dir}")
+        return full_path
+    except Exception as e:
+        logger.error(f"Error constructing welcome photo path: {e}", exc_info=True)
+        return None
+
 async def show_main_menu(message: types.Message, edit_message: bool = False):
     user_id = message.chat.id
     user_db_data = get_user(user_id)
@@ -149,18 +169,16 @@ def get_user_router() -> Router:
             if welcome_photo_path and welcome_text:
                 # Отправляем фото с текстом из файла на сервере
                 try:
-                    from pathlib import Path
-                    import os
-                    app_dir = Path(__file__).parent.parent.parent / "webhook_server"
-                    photo_path = app_dir / "static" / welcome_photo_path
+                    photo_path = get_welcome_photo_path(welcome_photo_path)
                     
-                    if photo_path.exists():
+                    if photo_path and photo_path.exists():
                         photo_file = FSInputFile(str(photo_path))
                         await message.answer_photo(
                             photo=photo_file,
                             caption=welcome_text,
                             reply_markup=keyboards.main_reply_keyboard
                         )
+                        logger.info(f"Welcome photo sent successfully from: {photo_path}")
                     else:
                         logger.warning(f"Welcome photo not found at path: {photo_path}")
                         await message.answer(
@@ -195,6 +213,48 @@ def get_user_router() -> Router:
 
         if not channel_url or not terms_url or not privacy_url:
             set_terms_agreed(user_id)
+            # Показываем приветственное сообщение с фото (если настроено)
+            welcome_text = get_setting("welcome_message_text")
+            welcome_photo_path = get_setting("welcome_message_photo_path")
+            
+            if welcome_photo_path and welcome_text:
+                # Отправляем фото с текстом из файла на сервере
+                try:
+                    photo_path = get_welcome_photo_path(welcome_photo_path)
+                    
+                    if photo_path and photo_path.exists():
+                        photo_file = FSInputFile(str(photo_path))
+                        await message.answer_photo(
+                            photo=photo_file,
+                            caption=welcome_text,
+                            reply_markup=keyboards.main_reply_keyboard
+                        )
+                        logger.info(f"Welcome photo sent successfully from: {photo_path}")
+                    else:
+                        logger.warning(f"Welcome photo not found at path: {photo_path}")
+                        await message.answer(
+                            welcome_text,
+                            reply_markup=keyboards.main_reply_keyboard
+                        )
+                except Exception as e:
+                    logger.error(f"Error sending welcome photo: {e}", exc_info=True)
+                    await message.answer(
+                        welcome_text if welcome_text else f"👋 Добро пожаловать, {html.bold(message.from_user.full_name)}!",
+                        reply_markup=keyboards.main_reply_keyboard
+                    )
+            elif welcome_text:
+                # Только текст без фото
+                await message.answer(
+                    welcome_text,
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            else:
+                # Стандартное приветствие, если настройки не заполнены
+                await message.answer(
+                    f"👋 Добро пожаловать, {html.bold(message.from_user.full_name)}!",
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            
             await show_main_menu(message)
             return
 
@@ -204,6 +264,48 @@ def get_user_router() -> Router:
 
         if not show_welcome_screen:
             set_terms_agreed(user_id)
+            # Показываем приветственное сообщение с фото (если настроено)
+            welcome_text = get_setting("welcome_message_text")
+            welcome_photo_path = get_setting("welcome_message_photo_path")
+            
+            if welcome_photo_path and welcome_text:
+                # Отправляем фото с текстом из файла на сервере
+                try:
+                    photo_path = get_welcome_photo_path(welcome_photo_path)
+                    
+                    if photo_path and photo_path.exists():
+                        photo_file = FSInputFile(str(photo_path))
+                        await message.answer_photo(
+                            photo=photo_file,
+                            caption=welcome_text,
+                            reply_markup=keyboards.main_reply_keyboard
+                        )
+                        logger.info(f"Welcome photo sent successfully from: {photo_path}")
+                    else:
+                        logger.warning(f"Welcome photo not found at path: {photo_path}")
+                        await message.answer(
+                            welcome_text,
+                            reply_markup=keyboards.main_reply_keyboard
+                        )
+                except Exception as e:
+                    logger.error(f"Error sending welcome photo: {e}", exc_info=True)
+                    await message.answer(
+                        welcome_text if welcome_text else f"👋 Добро пожаловать, {html.bold(message.from_user.full_name)}!",
+                        reply_markup=keyboards.main_reply_keyboard
+                    )
+            elif welcome_text:
+                # Только текст без фото
+                await message.answer(
+                    welcome_text,
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            else:
+                # Стандартное приветствие, если настройки не заполнены
+                await message.answer(
+                    f"👋 Добро пожаловать, {html.bold(message.from_user.full_name)}!",
+                    reply_markup=keyboards.main_reply_keyboard
+                )
+            
             await show_main_menu(message)
             return
 
@@ -1706,19 +1808,16 @@ async def process_successful_onboarding(callback: types.CallbackQuery, state: FS
     if welcome_photo_path and welcome_text:
         # Отправляем фото с текстом из файла на сервере
         try:
-            from pathlib import Path
-            # Получаем путь к static директории webhook_server
-            handlers_file = Path(__file__).resolve()
-            webhook_static_dir = handlers_file.parent.parent.parent / "webhook_server" / "static"
-            photo_path = webhook_static_dir / welcome_photo_path
+            photo_path = get_welcome_photo_path(welcome_photo_path)
             
-            if photo_path.exists():
+            if photo_path and photo_path.exists():
                 photo_file = FSInputFile(str(photo_path))
                 await callback.message.answer_photo(
                     photo=photo_file,
                     caption=welcome_text,
                     reply_markup=keyboards.main_reply_keyboard
                 )
+                logger.info(f"Welcome photo sent successfully from: {photo_path}")
             else:
                 logger.warning(f"Welcome photo not found at path: {photo_path}")
                 await callback.message.answer(
