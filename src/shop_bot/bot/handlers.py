@@ -1431,10 +1431,26 @@ def get_user_router() -> Router:
         await message.answer("❌ Пожалуйста, отправьте скриншот (фото) или PDF-файл чека об оплате.")
 
     @user_router.message(F.photo & ~StateFilter(PaymentProcess.waiting_for_payment_document))
-    @registration_required
     async def photo_handler(message: types.Message):
         # Если администратор отправил фото, показываем file_id для использования в настройках
-        if str(message.from_user.id) == ADMIN_ID:
+        user_id = message.from_user.id
+        
+        # Проверяем администратора через ADMIN_ID или через настройки
+        admin_id_from_settings = get_setting("admin_telegram_id")
+        admin_id_str = str(ADMIN_ID) if ADMIN_ID else admin_id_from_settings
+        
+        logger.info(f"Photo received from user {user_id}, ADMIN_ID: {ADMIN_ID}, admin_id_from_settings: {admin_id_from_settings}, admin_id_str: {admin_id_str}")
+        
+        # Проверяем, является ли пользователь администратором
+        is_admin = False
+        if admin_id_str:
+            try:
+                admin_id_int = int(admin_id_str)
+                is_admin = (user_id == admin_id_int)
+            except (ValueError, TypeError):
+                is_admin = (str(user_id) == admin_id_str)
+        
+        if is_admin:
             photo_id = message.photo[-1].file_id
             await message.answer(
                 f"📸 <b>File ID фото:</b>\n\n<code>{photo_id}</code>\n\n"
@@ -1442,6 +1458,10 @@ def get_user_router() -> Router:
                 f"\"File ID фото для приветствия\".",
                 parse_mode="HTML"
             )
+            logger.info(f"Admin {user_id} requested photo file_id: {photo_id}")
+        else:
+            # Если не администратор, просто игнорируем фото
+            logger.debug(f"User {user_id} sent photo, but is not admin (admin_id: {admin_id_str})")
 
     @user_router.callback_query(F.data.startswith("approve_document_"))
     async def approve_document_handler(callback: types.CallbackQuery):
