@@ -129,7 +129,7 @@ def initialize_db():
                 "tonapi_key": None,
                 "bank_card_rf_details": None,
                 "welcome_message_text": None,
-                "welcome_message_photo_file_id": None,
+                "welcome_message_photo_path": None,
                 "support_telegram_url": None,
                 "news_channel_url": None,
                 "android_url": "https://telegra.ph/Instrukciya-Android-11-09",

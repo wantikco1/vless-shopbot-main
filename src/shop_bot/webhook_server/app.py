@@ -8,7 +8,8 @@ from hmac import compare_digest
 from datetime import datetime
 from functools import wraps
 from math import ceil
-from flask import Flask, request, render_template, redirect, url_for, flash, session, current_app
+from flask import Flask, request, render_template, redirect, url_for, flash, session, current_app, send_from_directory
+from werkzeug.utils import secure_filename
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ ALL_SETTINGS_KEYS = [
     "heleket_merchant_id", "heleket_api_key", "domain", "referral_percentage",
     "referral_discount", "ton_wallet_address", "tonapi_key", "force_subscription", "trial_enabled", "trial_duration_days", "enable_referrals", "minimum_withdrawal",
     "support_group_id", "support_bot_token", "bank_card_rf_details", "welcome_message_text",
-    "welcome_message_photo_file_id", "support_telegram_url", "news_channel_url"
+    "welcome_message_photo_path", "support_telegram_url", "news_channel_url"
 ]
 
 def create_webhook_app(bot_controller_instance):
@@ -58,6 +59,10 @@ def create_webhook_app(bot_controller_instance):
     print(f"Does login.html file exist? -> {os.path.isfile(template_file)}", flush=True)
     print("--- END DIAGNOSTIC INFORMATION ---", flush=True)
     
+    # Создаем папку для загрузки файлов, если её нет
+    uploads_dir = os.path.join(app_dir, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    
     flask_app = Flask(
         __name__,
         template_folder='templates',
@@ -65,6 +70,12 @@ def create_webhook_app(bot_controller_instance):
     )
     
     flask_app.config['SECRET_KEY'] = 'lolkek4eburek'
+    flask_app.config['UPLOAD_FOLDER'] = uploads_dir
+    flask_app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     @flask_app.context_processor
     def inject_current_year():
@@ -248,13 +259,27 @@ def create_webhook_app(bot_controller_instance):
             if 'panel_password' in request.form and request.form.get('panel_password'):
                 update_setting('panel_password', request.form.get('panel_password'))
 
+            # Обработка загрузки фото для приветственного сообщения
+            if 'welcome_photo' in request.files:
+                file = request.files['welcome_photo']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    filename = secure_filename(f"welcome_photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file.filename.rsplit('.', 1)[1].lower()}")
+                    filepath = os.path.join(flask_app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    # Сохраняем относительный путь от static
+                    relative_path = f"uploads/{filename}"
+                    update_setting('welcome_message_photo_path', relative_path)
+                    flash(f'Фото успешно загружено: {filename}', 'success')
+                elif file and file.filename != '':
+                    flash('Недопустимый формат файла. Разрешены: PNG, JPG, JPEG, GIF, WEBP', 'danger')
+
             for checkbox_key in ['force_subscription', 'sbp_enabled', 'trial_enabled', 'enable_referrals']:
                 values = request.form.getlist(checkbox_key)
                 value = values[-1] if values else 'false'
                 update_setting(checkbox_key, 'true' if value == 'true' else 'false')
 
             for key in ALL_SETTINGS_KEYS:
-                if key in ['panel_password', 'force_subscription', 'sbp_enabled', 'trial_enabled', 'enable_referrals']:
+                if key in ['panel_password', 'force_subscription', 'sbp_enabled', 'trial_enabled', 'enable_referrals', 'welcome_message_photo_path']:
                     continue
                 update_setting(key, request.form.get(key, ''))
 
