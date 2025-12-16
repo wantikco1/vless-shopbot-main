@@ -62,6 +62,14 @@
 								Отозвать
 							</button>
 						</form>
+						{% endif %} {% if user.referral_balance and user.referral_balance > 0 %}
+						<button 
+							type="button" 
+							class="button button-referral button-small"
+							onclick="openReferralModal({{ user.telegram_id }})"
+						>
+							Рефералка
+						</button>
 						{% endif %}
 					</td>
 				</tr>
@@ -70,5 +78,40 @@
 		</table>
 	</div>
 </section>
+
+<!-- Модальное окно для рефералов -->
+<div id="referralModal" class="modal">
+	<div class="modal-content">
+		<div class="modal-header">
+			<h2>Реферальная программа</h2>
+			<span class="modal-close" onclick="closeReferralModal()">&times;</span>
+		</div>
+		<div class="modal-body">
+			<div class="referral-balance-section">
+				<h3>Текущий баланс: <span id="referralBalance">0.00</span> RUB</h3>
+			</div>
+			<div class="referral-controls">
+				<div class="form-group">
+					<label for="newBalance">Установить баланс:</label>
+					<div class="form-inline">
+						<input type="number" id="newBalance" step="0.01" min="0" placeholder="0.00" />
+						<button type="button" class="button button-primary button-small" onclick="setReferralBalance()">
+							Установить
+						</button>
+					</div>
+				</div>
+				<button type="button" class="button button-danger button-small" onclick="resetReferralBalance()">
+					Обнулить баланс
+				</button>
+			</div>
+			<div class="referrals-list-section">
+				<h3>Список рефералов:</h3>
+				<div id="referralsList" class="referrals-list">
+					<p>Загрузка...</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
 
 {% endblock %}

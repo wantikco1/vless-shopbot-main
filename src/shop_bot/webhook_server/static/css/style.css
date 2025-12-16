@@ -624,6 +624,151 @@ body.login-page {
 	background-color: var(--success-color);
 }
 
+.button-referral {
+	background-color: #51cf66;
+}
+.button-referral:hover {
+	background-color: #37b24d;
+}
+
+/* Модальное окно */
+.modal {
+	display: none;
+	position: fixed;
+	z-index: 1000;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+	background-color: #2d3238;
+	margin: 5% auto;
+	padding: 0;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	width: 90%;
+	max-width: 600px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 20px;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+	margin: 0;
+	color: var(--light-color);
+}
+
+.modal-close {
+	color: var(--light-color);
+	font-size: 28px;
+	font-weight: bold;
+	cursor: pointer;
+	line-height: 1;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+	color: var(--danger-color);
+}
+
+.modal-body {
+	padding: 20px;
+}
+
+.referral-balance-section {
+	margin-bottom: 25px;
+	padding: 15px;
+	background-color: #343a40;
+	border-radius: 5px;
+	border: 1px solid var(--border-color);
+}
+
+.referral-balance-section h3 {
+	margin: 0;
+	color: var(--light-color);
+}
+
+.referral-balance-section h3 span {
+	color: var(--success-color);
+	font-size: 1.2em;
+}
+
+.referral-controls {
+	margin-bottom: 25px;
+	padding: 15px;
+	background-color: #343a40;
+	border-radius: 5px;
+	border: 1px solid var(--border-color);
+}
+
+.referral-controls .form-group {
+	margin-bottom: 15px;
+}
+
+.referral-controls .button {
+	margin-top: 10px;
+}
+
+.referrals-list-section {
+	padding: 15px;
+	background-color: #343a40;
+	border-radius: 5px;
+	border: 1px solid var(--border-color);
+}
+
+.referrals-list-section h3 {
+	margin-top: 0;
+	margin-bottom: 15px;
+	color: var(--light-color);
+}
+
+.referrals-list {
+	color: var(--light-color);
+}
+
+.referrals-list-items {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.referrals-list-items li {
+	padding: 10px;
+	margin-bottom: 8px;
+	background-color: #2d3238;
+	border: 1px solid var(--border-color);
+	border-radius: 5px;
+}
+
+.referrals-list-items li:last-child {
+	margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+	.modal-content {
+		width: 95%;
+		margin: 10% auto;
+	}
+	
+	.modal-header {
+		padding: 15px;
+	}
+	
+	.modal-body {
+		padding: 15px;
+	}
+}
+
 @media (max-width: 1256px) {
 	.navigation {
 		display: flex;

@@ -226,4 +226,142 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupBotControlForms()
 	setupConfirmationForms()
 	initializeDashboardCharts()
+	setupReferralModal()
 })
+
+// Переменная для хранения текущего user_id
+let currentReferralUserId = null
+
+function setupReferralModal() {
+	// Закрытие модального окна при клике вне его
+	const modal = document.getElementById('referralModal')
+	if (modal) {
+		window.onclick = function (event) {
+			if (event.target === modal) {
+				closeReferralModal()
+			}
+		}
+	}
+}
+
+function openReferralModal(userId) {
+	currentReferralUserId = userId
+	const modal = document.getElementById('referralModal')
+	if (modal) {
+		modal.style.display = 'block'
+		loadReferralData(userId)
+	}
+}
+
+function closeReferralModal() {
+	const modal = document.getElementById('referralModal')
+	if (modal) {
+		modal.style.display = 'none'
+		currentReferralUserId = null
+		document.getElementById('newBalance').value = ''
+	}
+}
+
+function loadReferralData(userId) {
+	const balanceElement = document.getElementById('referralBalance')
+	const referralsList = document.getElementById('referralsList')
+	
+	balanceElement.textContent = 'Загрузка...'
+	referralsList.innerHTML = '<p>Загрузка...</p>'
+	
+	fetch(`/users/referrals/${userId}`)
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				balanceElement.textContent = `${data.balance.toFixed(2)} RUB`
+				
+				if (data.referrals && data.referrals.length > 0) {
+					let html = '<ul class="referrals-list-items">'
+					data.referrals.forEach(ref => {
+						const username = ref.username ? `@${ref.username}` : 'N/A'
+						html += `<li>ID: ${ref.telegram_id} | ${username}</li>`
+					})
+					html += '</ul>'
+					referralsList.innerHTML = html
+				} else {
+					referralsList.innerHTML = '<p>У пользователя пока нет рефералов.</p>'
+				}
+			} else {
+				alert('Ошибка загрузки данных: ' + (data.error || 'Неизвестная ошибка'))
+			}
+		})
+		.catch(error => {
+			console.error('Error loading referral data:', error)
+			alert('Ошибка загрузки данных о рефералах')
+		})
+}
+
+function resetReferralBalance() {
+	if (!currentReferralUserId) return
+	
+	if (!confirm('Вы уверены, что хотите обнулить реферальный баланс этого пользователя?')) {
+		return
+	}
+	
+	fetch(`/users/referrals/${currentReferralUserId}/reset`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				loadReferralData(currentReferralUserId)
+				alert('Баланс успешно обнулен')
+				// Обновляем страницу, чтобы обновить кнопку рефералки
+				setTimeout(() => {
+					window.location.reload()
+				}, 500)
+			} else {
+				alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'))
+			}
+		})
+		.catch(error => {
+			console.error('Error resetting balance:', error)
+			alert('Ошибка при обнулении баланса')
+		})
+}
+
+function setReferralBalance() {
+	if (!currentReferralUserId) return
+	
+	const balanceInput = document.getElementById('newBalance')
+	const newBalance = parseFloat(balanceInput.value)
+	
+	if (isNaN(newBalance) || newBalance < 0) {
+		alert('Введите корректное значение баланса (число >= 0)')
+		return
+	}
+	
+	if (!confirm(`Установить баланс ${newBalance.toFixed(2)} RUB для этого пользователя?`)) {
+		return
+	}
+	
+	fetch(`/users/referrals/${currentReferralUserId}/set`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ balance: newBalance })
+	})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				balanceInput.value = ''
+				loadReferralData(currentReferralUserId)
+				alert('Баланс успешно установлен')
+			} else {
+				alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'))
+			}
+		})
+		.catch(error => {
+			console.error('Error setting balance:', error)
+			alert('Ошибка при установке баланса')
+		})
+}

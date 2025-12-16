@@ -435,6 +435,19 @@ def get_referral_count(user_id: int) -> int:
         logging.error(f"Failed to get referral count for user {user_id}: {e}")
         return 0
 
+def get_user_referrals(user_id: int) -> list[dict]:
+    """Получает список всех рефералов пользователя с их ID и username"""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT telegram_id, username FROM users WHERE referred_by = ? ORDER BY registration_date DESC", (user_id,))
+            referrals = cursor.fetchall()
+            return [dict(row) for row in referrals]
+    except sqlite3.Error as e:
+        logging.error(f"Failed to get referrals for user {user_id}: {e}")
+        return []
+
 def get_user(telegram_id: int):
     try:
         with sqlite3.connect(DB_FILE) as conn:

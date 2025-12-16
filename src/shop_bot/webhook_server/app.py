@@ -8,7 +8,7 @@ from hmac import compare_digest
 from datetime import datetime
 from functools import wraps
 from math import ceil
-from flask import Flask, request, render_template, redirect, url_for, flash, session, current_app, send_from_directory
+from flask import Flask, request, render_template, redirect, url_for, flash, session, current_app, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,8 @@ from shop_bot.data_manager.database import (
     get_recent_transactions, get_paginated_transactions, get_all_users, get_user_keys,
     ban_user, unban_user, delete_user_keys, get_setting, find_and_complete_ton_transaction,
     get_pending_bank_payment_documents, get_bank_payment_document, update_bank_payment_document_status,
-    get_transaction_by_id, update_transaction_status
+    get_transaction_by_id, update_transaction_status, get_referral_balance, get_user_referrals,
+    set_referral_balance
 )
 
 _bot_controller = None
@@ -155,6 +156,7 @@ def create_webhook_app(bot_controller_instance):
         users = get_all_users()
         for user in users:
             user['user_keys'] = get_user_keys(user['telegram_id'])
+            user['referral_balance'] = get_referral_balance(user['telegram_id'])
         
         common_data = get_common_template_data()
         return render_template('users.html', users=users, **common_data)
@@ -355,6 +357,46 @@ def create_webhook_app(bot_controller_instance):
             flash(f"Удалось отозвать {success_count} из {len(keys_to_revoke)} ключей для пользователя {user_id}. Проверьте логи.", 'warning')
 
         return redirect(url_for('users_page'))
+
+    @flask_app.route('/users/referrals/<int:user_id>', methods=['GET'])
+    @login_required
+    def get_user_referrals_route(user_id):
+        """Получает данные о рефералах пользователя"""
+        try:
+            balance = get_referral_balance(user_id)
+            referrals = get_user_referrals(user_id)
+            return jsonify({
+                'success': True,
+                'balance': balance,
+                'referrals': referrals
+            })
+        except Exception as e:
+            logger.error(f"Error getting referrals for user {user_id}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @flask_app.route('/users/referrals/<int:user_id>/reset', methods=['POST'])
+    @login_required
+    def reset_referral_balance_route(user_id):
+        """Обнуляет реферальный баланс пользователя"""
+        try:
+            set_referral_balance(user_id, 0.0)
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"Error resetting referral balance for user {user_id}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @flask_app.route('/users/referrals/<int:user_id>/set', methods=['POST'])
+    @login_required
+    def set_referral_balance_route(user_id):
+        """Устанавливает реферальный баланс пользователя"""
+        try:
+            data = request.get_json()
+            new_balance = float(data.get('balance', 0))
+            set_referral_balance(user_id, new_balance)
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"Error setting referral balance for user {user_id}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     @flask_app.route('/add-host', methods=['POST'])
     @login_required
