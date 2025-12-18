@@ -131,7 +131,11 @@ def create_payment_method_keyboard(payment_methods: dict, action: str, key_id: i
             builder.button(text="🏦 СБП / Банковская карта", callback_data="pay_yookassa")
         else:
             builder.button(text="🏦 Банковская карта", callback_data="pay_yookassa")
-    builder.button(text="💳 Банковская карта РФ", callback_data="pay_bank_card_rf")
+    
+    bank_card_rf_details = get_setting("bank_card_rf_details")
+    if bank_card_rf_details and bank_card_rf_details.strip():
+        builder.button(text="💳 Банковская карта РФ", callback_data="pay_bank_card_rf")
+    
     if payment_methods and payment_methods.get("heleket"):
         builder.button(text="💎 Криптовалюта", callback_data="pay_heleket")
     if payment_methods and payment_methods.get("cryptobot"):
