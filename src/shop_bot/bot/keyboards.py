@@ -117,9 +117,8 @@ def create_plans_keyboard(plans: list[dict], action: str, host_name: str, key_id
     builder.adjust(1) 
     return builder.as_markup()
 
-def create_skip_email_keyboard() -> InlineKeyboardMarkup:
+def create_email_input_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="➡️ Продолжить без почты", callback_data="skip_email")
     builder.button(text="⬅️ Назад к тарифам", callback_data="back_to_plans")
     builder.adjust(1)
     return builder.as_markup()

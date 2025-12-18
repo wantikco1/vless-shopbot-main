@@ -972,8 +972,8 @@ def get_user_router() -> Router:
         
         await callback.message.edit_text(
             "📧 Пожалуйста, введите ваш email для отправки чека об оплате.\n\n"
-            "Если вы не хотите указывать почту, нажмите кнопку ниже.",
-            reply_markup=keyboards.create_skip_email_keyboard()
+            "Пример: example@mail.ru",
+            reply_markup=keyboards.create_email_input_keyboard()
         )
         await state.set_state(PaymentProcess.waiting_for_email)
 
@@ -993,9 +993,11 @@ def get_user_router() -> Router:
 
     @user_router.message(PaymentProcess.waiting_for_email)
     async def process_email_handler(message: types.Message, state: FSMContext):
-        if is_valid_email(message.text):
-            await state.update_data(customer_email=message.text)
-            await message.answer(f"✅ Email принят: {message.text}")
+        email_text = message.text.strip() if message.text else ""
+        
+        if is_valid_email(email_text):
+            await state.update_data(customer_email=email_text)
+            await message.answer(f"✅ Email принят: {email_text}")
 
             data = await state.get_data()
             await message.answer(
@@ -1009,24 +1011,11 @@ def get_user_router() -> Router:
             await state.set_state(PaymentProcess.waiting_for_payment_method)
             logger.info(f"User {message.chat.id}: State set to waiting_for_payment_method")
         else:
-            await message.answer("❌ Неверный формат email. Попробуйте еще раз.")
-
-    @user_router.callback_query(PaymentProcess.waiting_for_email, F.data == "skip_email")
-    async def skip_email_handler(callback: types.CallbackQuery, state: FSMContext):
-        await callback.answer()
-        await state.update_data(customer_email=None)
-
-        data = await state.get_data()
-        await callback.message.edit_text(
-            CHOOSE_PAYMENT_METHOD_MESSAGE,
-            reply_markup=keyboards.create_payment_method_keyboard(
-                payment_methods=PAYMENT_METHODS,
-                action=data.get('action'),
-                key_id=data.get('key_id')
+            await message.answer(
+                "❌ Неверный формат email.\n\n"
+                "Email должен содержать символ @ и домен (например: user@mail.ru)\n"
+                "Попробуйте еще раз."
             )
-        )
-        await state.set_state(PaymentProcess.waiting_for_payment_method)
-        logger.info(f"User {callback.from_user.id}: State set to waiting_for_payment_method")
 
     async def show_payment_options(message: types.Message, state: FSMContext):
         data = await state.get_data()
@@ -1073,8 +1062,8 @@ def get_user_router() -> Router:
     async def back_to_email_prompt_handler(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             "📧 Пожалуйста, введите ваш email для отправки чека об оплате.\n\n"
-            "Если вы не хотите указывать почту, нажмите кнопку ниже.",
-            reply_markup=keyboards.create_skip_email_keyboard()
+            "Пример: example@mail.ru",
+            reply_markup=keyboards.create_email_input_keyboard()
         )
         await state.set_state(PaymentProcess.waiting_for_email)
 
@@ -1109,9 +1098,6 @@ def get_user_router() -> Router:
         host_name = data.get('host_name')
         action = data.get('action')
         key_id = data.get('key_id')
-        
-        if not customer_email:
-            customer_email = get_setting("receipt_email")
 
         plan = get_plan_by_id(plan_id)
         if not plan:
@@ -1126,22 +1112,21 @@ def get_user_router() -> Router:
             price_str_for_api = f"{price_rub:.2f}"
             price_float_for_metadata = float(price_rub)
 
-            receipt = None
-            if customer_email and is_valid_email(customer_email):
-                receipt = {
-                    "customer": {"email": customer_email},
-                    "items": [{
-                        "description": f"Подписка на {months} мес.",
-                        "quantity": "1.00",
-                        "amount": {"value": price_str_for_api, "currency": "RUB"},
-                        "vat_code": "1"
-                    }]
-                }
+            receipt = {
+                "customer": {"email": customer_email},
+                "items": [{
+                    "description": f"Подписка на {months} мес.",
+                    "quantity": "1.00",
+                    "amount": {"value": price_str_for_api, "currency": "RUB"},
+                    "vat_code": "1"
+                }]
+            }
             payment_payload = {
                 "amount": {"value": price_str_for_api, "currency": "RUB"},
                 "confirmation": {"type": "redirect", "return_url": f"https://t.me/{TELEGRAM_BOT_USERNAME}"},
                 "capture": True,
                 "description": f"Подписка на {months} мес.",
+                "receipt": receipt,
                 "metadata": {
                     "user_id": user_id, "months": months, "price": price_float_for_metadata, 
                     "action": action, "key_id": key_id, "host_name": host_name,
@@ -1149,8 +1134,6 @@ def get_user_router() -> Router:
                     "payment_method": "YooKassa"
                 }
             }
-            if receipt:
-                payment_payload['receipt'] = receipt
 
             payment = Payment.create(payment_payload, uuid.uuid4())
             
